@@ -228,10 +228,10 @@ function MessageBubble({ message }: { message: Message }) {
       )}
     >
       <div className={cn(
-        "max-w-[85%] p-3 rounded-2xl relative",
+        "max-w-[85%] relative", // Common classes for layout
         message.type === "user" 
-          ? "bg-gray-700 text-gray-100 rounded-br-md" 
-          : "bg-gray-900/50 border border-gray-800 text-gray-200 rounded-bl-md"
+          ? "p-3 rounded-2xl bg-gray-700 text-gray-100 rounded-br-md" // User bubble with container
+          : "text-gray-200" // AI text directly on background, no padding/container visuals
       )}>
         {message.type === "ai" ? (
           <div 
