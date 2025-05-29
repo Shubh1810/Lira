@@ -40,22 +40,32 @@ class LLMService {
     isConnecting: false,
   };
 
-  private readonly backendUrl = "/api";
+  private readonly baseUrl: string;
+  private readonly apiPath = "/api"; // Assuming your main.py routes are under /api
 
   private statusCallbacks: ((status: LLMConnectionStatus) => void)[] = [];
 
   constructor() {
-    // Simulate initial connection attempt
-    this.attemptConnection();
+    if (typeof window !== 'undefined') {
+      if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
+        // Local development: point to the FastAPI server (main.py on port 5001)
+        this.baseUrl = "http://localhost:5001";
+      } else {
+        // Deployed environment (Vercel or other): use the current origin
+        // This assumes the /api path will be correctly proxied or handled by Vercel
+        this.baseUrl = window.location.origin;
+      }
+    } else {
+      // Fallback for SSR or other non-browser environments (should not make calls from here)
+      this.baseUrl = ''; // Or handle error, or provide a server-side default if applicable
+    }
+    // Do not attempt connection from constructor; let useEffect in component handle it
   }
 
   // Subscribe to connection status changes
   onStatusChange(callback: (status: LLMConnectionStatus) => void) {
     this.statusCallbacks.push(callback);
-    // Immediately call with current status
-    callback(this.connectionStatus);
-    
-    // Return unsubscribe function
+    callback(this.connectionStatus); // Immediately call with current status
     return () => {
       this.statusCallbacks = this.statusCallbacks.filter(cb => cb !== callback);
     };
@@ -66,35 +76,29 @@ class LLMService {
   }
 
   private async attemptConnection() {
-    this.connectionStatus = {
-      ...this.connectionStatus,
-      isConnecting: true,
-      error: undefined,
-    };
+    if (!this.baseUrl) {
+      this.connectionStatus = { isConnected: false, isConnecting: false, error: "API base URL not configured." };
+      this.notifyStatusChange();
+      return;
+    }
+
+    this.connectionStatus = { ...this.connectionStatus, isConnecting: true, error: undefined };
     this.notifyStatusChange();
 
     try {
-      const response = await fetch(`${this.backendUrl}/`);
+      // Assuming your main.py has a health check at its root / or /api
+      // For main.py directly, it might be `${this.baseUrl}/` if no /api prefix is in main.py for health
+      // If main.py also serves under /api, then `${this.baseUrl}${this.apiPath}` is correct.
+      const healthCheckUrl = `${this.baseUrl}${this.apiPath}`;
+      const response = await fetch(healthCheckUrl); 
       if (response.ok) {
-        this.connectionStatus = {
-          isConnected: true,
-          isConnecting: false,
-          lastConnected: new Date(),
-        };
+        this.connectionStatus = { isConnected: true, isConnecting: false, lastConnected: new Date() };
       } else {
-        this.connectionStatus = {
-          isConnected: false,
-          isConnecting: false,
-          error: `Connection failed: ${response.statusText} (Status: ${response.status})`,
-        };
+        this.connectionStatus = { isConnected: false, isConnecting: false, error: `Connection failed: ${response.statusText} (Status: ${response.status}) to ${healthCheckUrl}` };
       }
     } catch (error) {
       console.error("Error connecting to LLM service:", error);
-      this.connectionStatus = {
-        isConnected: false,
-        isConnecting: false,
-        error: "Connection error. Is the Python server running?",
-      };
+      this.connectionStatus = { isConnected: false, isConnecting: false, error: "Connection error. Is the Python server running?" };
     }
     this.notifyStatusChange();
   }
@@ -108,9 +112,10 @@ class LLMService {
     return { ...this.connectionStatus };
   }
 
-  // Future method for sending messages to LLM
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   async sendMessage(message: string): Promise<string> {
+    if (!this.baseUrl) {
+      throw new Error("API base URL not configured. Cannot send message.");
+    }
     if (!this.connectionStatus.isConnected) {
       await this.reconnect();
       if (!this.connectionStatus.isConnected) {
@@ -119,31 +124,24 @@ class LLMService {
     }
     
     try {
-      const response = await fetch(`${this.backendUrl}/ask`, {
+      const messageUrl = `${this.baseUrl}${this.apiPath}/ask`;
+      const response = await fetch(messageUrl, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ query: message }),
       });
 
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({ detail: "Unknown error from backend" }));
-        throw new Error(`Backend error: ${errorData.detail || response.statusText} (Status: ${response.status})`);
+        throw new Error(`Backend error: ${errorData.detail || response.statusText} (Status: ${response.status}) from ${messageUrl}`);
       }
 
       const responseData = await response.json();
-      if (responseData && responseData.response) {
-        return responseData.response;
-      } else {
-        throw new Error("Invalid response format from backend.");
-      }
+      return responseData?.response || Promise.reject("Invalid response format from backend.");
     } catch (error) {
       console.error("Error sending message to LLM backend:", error);
-      if (error instanceof Error) {
-        throw new Error(`Failed to send message: ${error.message}`);
-      }
-      throw new Error("Failed to send message due to an unknown error.");
+      const errorMessage = error instanceof Error ? error.message : "Unknown error.";
+      throw new Error(`Failed to send message: ${errorMessage}`);
     }
   }
 }
@@ -199,6 +197,29 @@ function ConnectionStatus({ status }: { status: LLMConnectionStatus }) {
 
 // Message Component
 function MessageBubble({ message }: { message: Message }) {
+  // Simple function to convert markdown bold to HTML strong tags
+  const formatMessageContent = (content: string) => {
+    let htmlContent = content;
+
+    // Headings: #, ##, ###
+    // Important: Process from ### down to # to avoid conflicts (e.g., ## matching ### first)
+    htmlContent = htmlContent.replace(/^### (.*$)/gim, "<h3>$1</h3>");
+    htmlContent = htmlContent.replace(/^## (.*$)/gim, "<h2>$1</h2>");
+    htmlContent = htmlContent.replace(/^# (.*$)/gim, "<h1>$1</h1>");
+
+    // Bold: **text** or __text__
+    htmlContent = htmlContent.replace(/\*\*([^\*\*]+)\*\*/g, "<strong>$1</strong>");
+    htmlContent = htmlContent.replace(/__([^__]+)__/g, "<strong>$1</strong>");
+    
+    // Italic: *text* or _text_
+    // htmlContent = htmlContent.replace(/\*([^\*]+)\*/g, "<em>$1</em>");
+    // htmlContent = htmlContent.replace(/_([^_]+)_/g, "<em>$1</em>");
+
+    // TODO: Add more markdown conversions as needed (e.g., lists, links, code blocks)
+
+    return htmlContent;
+  };
+
   return (
     <div
       className={cn(
@@ -212,7 +233,14 @@ function MessageBubble({ message }: { message: Message }) {
           ? "bg-gray-700 text-gray-100 rounded-br-md" 
           : "bg-gray-900/50 border border-gray-800 text-gray-200 rounded-bl-md"
       )}>
-        <p className="text-sm leading-relaxed">{message.content}</p>
+        {message.type === "ai" ? (
+          <div 
+            className="text-sm leading-relaxed whitespace-pre-wrap"
+            dangerouslySetInnerHTML={{ __html: formatMessageContent(message.content) }}
+          />
+        ) : (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+        )}
         {message.status === "sending" && (
           <div className="text-xs text-gray-500 mt-1">Sending...</div>
         )}
@@ -242,9 +270,11 @@ export default function AssistantPage() {
     }
   }, [messages]);
 
-  // Subscribe to LLM connection status
+  // Subscribe to LLM connection status and attempt initial connection
   useEffect(() => {
     const unsubscribe = llmService.onStatusChange(setConnectionStatus);
+    // Attempt to connect when component mounts on client-side
+    llmService.reconnect(); 
     return unsubscribe;
   }, []);
 
