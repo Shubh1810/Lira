@@ -1,0 +1,168 @@
+@import "tailwindcss";
+
+:root {
+  --background: #0f0f23;
+  --foreground: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #0a0a0a;
+    --foreground: #ededed;
+  }
+}
+
+@layer utilities {
+  .animate-gradient-pulse {
+    animation: gradient-pulse 4s infinite ease-in-out;
+  }
+
+  .animate-gradient-spin {
+    background-size: 200% 200%; /* Ensure gradient has room to move */
+    animation: gradient-spin 8s linear infinite;
+  }
+}
+
+@keyframes gradient-pulse {
+  0%, 100% {
+    opacity: 0.75;
+    filter: drop-shadow(0 0 3px currentColor);
+  }
+  50% {
+    opacity: 1;
+    filter: drop-shadow(0 0 8px currentColor);
+  }
+}
+
+@keyframes gradient-spin {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+.font-michroma {
+  font-family: "Michroma", sans-serif;
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  -ms-overflow-style: none;  /* IE and Edge */
+  scrollbar-width: none;  /* Firefox */
+}
+
+/* Mobile viewport height fixes for sidebar */
+.mobile-sidebar {
+  height: 100vh; /* Fallback for older browsers */
+  height: 100svh; /* Small viewport height - excludes browser UI */
+  min-height: 100vh; /* Ensure minimum height */
+}
+
+.mobile-sidebar-content {
+  height: calc(100vh - 56px); /* Fallback */
+  height: calc(100svh - 56px); /* Small viewport height minus header */
+  min-height: calc(100vh - 56px); /* Ensure minimum height */
+}
+
+/* Safari mobile safe area support */
+@supports (padding: max(0px)) {
+  .safe-area-bottom {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
+/* Webkit specific fixes for iOS Safari */
+@supports (-webkit-touch-callout: none) {
+  .mobile-sidebar {
+    height: 100vh;
+    height: 100svh;
+    min-height: -webkit-fill-available;
+  }
+  .mobile-sidebar-content {
+    height: calc(100vh - 56px);
+    height: calc(100svh - 56px);
+    min-height: calc(-webkit-fill-available - 56px);
+  }
+}
+
+/* Additional mobile adjustments */
+@media (max-width: 768px) {
+  .mobile-sidebar {
+    height: 100vh !important;
+    min-height: 100vh !important;
+    max-height: 100vh !important;
+  }
+  .mobile-sidebar-content {
+    height: calc(100vh - 56px) !important;
+    min-height: calc(100vh - 56px) !important;
+    max-height: calc(100vh - 56px) !important;
+  }
+  
+  /* Mobile-specific account section positioning */
+  .mobile-account-section {
+    position: absolute !important;
+    bottom: 80px !important; /* Move higher up from bottom */
+    left: 0 !important;
+    right: 0 !important;
+    padding: 16px !important;
+    background: linear-gradient(to top, rgba(17, 24, 39, 0.95), rgba(17, 24, 39, 0.8)) !important;
+    backdrop-filter: blur(8px) !important;
+  }
+  
+  /* Adjust navigation area to account for repositioned account section */
+  .mobile-nav-area {
+    padding-bottom: 120px !important; /* Add space for account section */
+    height: calc(100vh - 200px) !important; /* Reduce height to accommodate account section */
+  }
+  
+  /* Mobile button styling */
+  .mobile-account-button {
+    min-height: 56px !important; /* Larger touch target */
+    padding: 12px !important;
+  }
+  
+  /* Ensure account section is always visible */
+  .mobile-sidebar-content {
+    position: relative !important;
+  }
+}
+
+/* Custom scrollbar */
+/* Hide scrollbar for Chrome, Safari and Opera */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* Smooth animations */
+* {
+  transition: all 0.2s ease-in-out;
+}
+
+/* Glass morphism effect */
+.glass {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+html, body {
+  touch-action: manipulation;
+  -ms-touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  -ms-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
