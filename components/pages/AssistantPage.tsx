@@ -339,7 +339,7 @@ export default function AssistantPage() {
       <div className="max-w-3xl w-full mx-auto relative">
         <button
           onClick={handleNewChat}
-          className="fixed top-5.5 right-5 md:top-5 md:right-114 z-30 bg-gray-800/50 hover:bg-gray-700/90 text-gray-200 p-2 rounded-full shadow-lg transition-colors backdrop-blur-sm"
+          className="fixed top-5.5 right-5 md:top-5 md:right-86 z-30 bg-gray-800/50 hover:bg-gray-700/90 text-gray-200 p-2 rounded-full shadow-lg transition-colors backdrop-blur-sm"
         >
           <PlusCircle className="w-5 h-5" />
         </button>
