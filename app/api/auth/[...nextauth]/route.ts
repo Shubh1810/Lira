@@ -76,7 +76,7 @@ const handler = NextAuth({
       return true;
     },
     
-    async redirect({ url, baseUrl }) {
+    async redirect({ baseUrl }) {
       // Always redirect to home page after sign in
       return baseUrl;
     },
