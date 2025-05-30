@@ -16,6 +16,7 @@ import {
 import Image from "next/image";
 import { cn } from "@/lib/utils";
 import { PageWrapper } from "@/components/ui/PageWrapper";
+import { askLlm, AskQuery, AskResponse } from "@/lib/api";
 
 // Types for better type safety
 interface Message {
@@ -24,6 +25,7 @@ interface Message {
   content: string;
   timestamp: Date;
   status?: "sending" | "sent" | "error";
+  sessionId?: string;
 }
 
 interface LLMConnectionStatus {
@@ -33,7 +35,8 @@ interface LLMConnectionStatus {
   error?: string;
 }
 
-// LLM Service class for future API integration
+// LLM Service class - Simplified as we'll use the api.ts functions directly for now
+// Keeping the status management part for UI updates
 class LLMService {
   private connectionStatus: LLMConnectionStatus = {
     isConnected: false,
@@ -41,31 +44,25 @@ class LLMService {
   };
 
   private readonly baseUrl: string;
-  private readonly apiPath = "/api"; // Assuming your main.py routes are under /api
+  private readonly apiPath = "/api";
 
   private statusCallbacks: ((status: LLMConnectionStatus) => void)[] = [];
 
   constructor() {
     if (typeof window !== 'undefined') {
       if (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1") {
-        // Local development: point to the FastAPI server (main.py on port 5001)
-        this.baseUrl = "http://localhost:5001";
+        this.baseUrl = "http://localhost:5001"; // Backend API
       } else {
-        // Deployed environment (Vercel or other): use the current origin
-        // This assumes the /api path will be correctly proxied or handled by Vercel
-        this.baseUrl = window.location.origin;
+        this.baseUrl = window.location.origin; // Assumes backend is on the same domain or proxied
       }
     } else {
-      // Fallback for SSR or other non-browser environments (should not make calls from here)
-      this.baseUrl = ''; // Or handle error, or provide a server-side default if applicable
+      this.baseUrl = ''; 
     }
-    // Do not attempt connection from constructor; let useEffect in component handle it
   }
 
-  // Subscribe to connection status changes
   onStatusChange(callback: (status: LLMConnectionStatus) => void) {
     this.statusCallbacks.push(callback);
-    callback(this.connectionStatus); // Immediately call with current status
+    callback(this.connectionStatus);
     return () => {
       this.statusCallbacks = this.statusCallbacks.filter(cb => cb !== callback);
     };
@@ -86,9 +83,6 @@ class LLMService {
     this.notifyStatusChange();
 
     try {
-      // Assuming your main.py has a health check at its root / or /api
-      // For main.py directly, it might be `${this.baseUrl}/` if no /api prefix is in main.py for health
-      // If main.py also serves under /api, then `${this.baseUrl}${this.apiPath}` is correct.
       const healthCheckUrl = `${this.baseUrl}${this.apiPath}`;
       const response = await fetch(healthCheckUrl); 
       if (response.ok) {
@@ -112,38 +106,7 @@ class LLMService {
     return { ...this.connectionStatus };
   }
 
-  async sendMessage(message: string): Promise<string> {
-    if (!this.baseUrl) {
-      throw new Error("API base URL not configured. Cannot send message.");
-    }
-    if (!this.connectionStatus.isConnected) {
-      await this.reconnect();
-      if (!this.connectionStatus.isConnected) {
-        throw new Error("LLM service not connected. Please check the Python server.");
-      }
-    }
-    
-    try {
-      const messageUrl = `${this.baseUrl}${this.apiPath}/ask`;
-      const response = await fetch(messageUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query: message }),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ detail: "Unknown error from backend" }));
-        throw new Error(`Backend error: ${errorData.detail || response.statusText} (Status: ${response.status}) from ${messageUrl}`);
-      }
-
-      const responseData = await response.json();
-      return responseData?.response || Promise.reject("Invalid response format from backend.");
-    } catch (error) {
-      console.error("Error sending message to LLM backend:", error);
-      const errorMessage = error instanceof Error ? error.message : "Unknown error.";
-      throw new Error(`Failed to send message: ${errorMessage}`);
-    }
-  }
+  // sendMessage is now handled directly by calling askLlm from api.ts in the component
 }
 
 // Create singleton instance
@@ -197,26 +160,13 @@ function ConnectionStatus({ status }: { status: LLMConnectionStatus }) {
 
 // Message Component
 function MessageBubble({ message }: { message: Message }) {
-  // Simple function to convert markdown bold to HTML strong tags
   const formatMessageContent = (content: string) => {
     let htmlContent = content;
-
-    // Headings: #, ##, ###
-    // Important: Process from ### down to # to avoid conflicts (e.g., ## matching ### first)
     htmlContent = htmlContent.replace(/^### (.*$)/gim, "<h3>$1</h3>");
     htmlContent = htmlContent.replace(/^## (.*$)/gim, "<h2>$1</h2>");
     htmlContent = htmlContent.replace(/^# (.*$)/gim, "<h1>$1</h1>");
-
-    // Bold: **text** or __text__
     htmlContent = htmlContent.replace(/\*\*([^\*\*]+)\*\*/g, "<strong>$1</strong>");
     htmlContent = htmlContent.replace(/__([^__]+)__/g, "<strong>$1</strong>");
-    
-    // Italic: *text* or _text_
-    // htmlContent = htmlContent.replace(/\*([^\*]+)\*/g, "<em>$1</em>");
-    // htmlContent = htmlContent.replace(/_([^_]+)_/g, "<em>$1</em>");
-
-    // TODO: Add more markdown conversions as needed (e.g., lists, links, code blocks)
-
     return htmlContent;
   };
 
@@ -228,10 +178,10 @@ function MessageBubble({ message }: { message: Message }) {
       )}
     >
       <div className={cn(
-        "max-w-[85%] relative", // Common classes for layout
+        "max-w-[85%] relative",
         message.type === "user" 
-          ? "p-3 rounded-2xl bg-gray-700 text-gray-100 rounded-br-md" // User bubble with container
-          : "text-gray-200" // AI text directly on background, no padding/container visuals
+          ? "p-3 rounded-2xl bg-gray-700 text-gray-100 rounded-br-md" 
+          : "text-gray-200"
       )}>
         {message.type === "ai" ? (
           <div 
@@ -256,76 +206,87 @@ function MessageBubble({ message }: { message: Message }) {
 export default function AssistantPage() {
   const [messages, setMessages] = useState<Message[]>(() => []);
   const [inputMessage, setInputMessage] = useState("");
-  const [connectionStatus, setConnectionStatus] = useState<LLMConnectionStatus>({
-    isConnected: false,
-    isConnecting: false,
-  });
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const [connectionStatus, setConnectionStatus] = useState<LLMConnectionStatus>(llmService.getStatus());
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Scroll to bottom of chat on new message
     if (chatContainerRef.current) {
       chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [messages]);
 
-  // Subscribe to LLM connection status and attempt initial connection
   useEffect(() => {
     const unsubscribe = llmService.onStatusChange(setConnectionStatus);
-    // Attempt to connect when component mounts on client-side
-    llmService.reconnect(); 
+    if (!connectionStatus.isConnected && !connectionStatus.isConnecting) {
+      llmService.reconnect(); 
+    }
     return unsubscribe;
-  }, []);
+  }, [connectionStatus.isConnected, connectionStatus.isConnecting]);
 
   const handleNewChat = () => {
     setMessages([]);
     setInputMessage("");
+    setCurrentSessionId(null);
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || !connectionStatus.isConnected) {
+      if (!connectionStatus.isConnected) {
+        console.warn("Cannot send message: LLM service not connected.");
+      }
+      return;
+    }
     
+    const userMessageContent = inputMessage;
     const userMessage: Message = { 
       id: Date.now(), 
       type: "user", 
-      content: inputMessage,
+      content: userMessageContent,
       timestamp: new Date(),
+      sessionId: currentSessionId || undefined,
     };
     
     setMessages(prev => [...prev, userMessage]);
     setInputMessage("");
 
-    // Create AI response message with sending status
     const aiMessageId = Date.now() + 1;
-    const aiMessage: Message = {
+    const aiMessagePlaceholder: Message = {
       id: aiMessageId,
       type: "ai",
       content: "",
       timestamp: new Date(),
       status: "sending",
+      sessionId: currentSessionId || undefined,
     };
     
-    setMessages(prev => [...prev, aiMessage]);
+    setMessages(prev => [...prev, aiMessagePlaceholder]);
 
     try {
-      const responseContent = await llmService.sendMessage(inputMessage);
+      const payload: AskQuery = {
+        query: userMessageContent,
+        session_id: currentSessionId,
+      };
+      const response: AskResponse = await askLlm(payload);
       
-      // Update the AI message with the response
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
-          ? { ...msg, content: responseContent, status: "sent" }
+          ? { ...msg, content: response.response, status: "sent", sessionId: response.session_id }
           : msg
       ));
 
+      if (response.session_id) {
+        setCurrentSessionId(response.session_id);
+      }
+
     } catch (error) {
-      console.error("Error sending message or getting LLM response:", error); // Log the error
-      // Handle error
+      console.error("Error sending message or getting LLM response:", error);
       setMessages(prev => prev.map(msg => 
         msg.id === aiMessageId 
           ? { 
               ...msg, 
-              content: "Sorry, I encountered an error. Please try again.", 
+              content: error instanceof Error ? error.message : "Sorry, I encountered an error. Please try again.", 
               status: "error" 
             }
           : msg
@@ -351,13 +312,12 @@ export default function AssistantPage() {
         messages.length > 0 ? "pb-[200px] md:pb-[220px]" : "pb-[120px] md:pb-10"
       )}>
         
-        {/* Conditional rendering for welcome vs chat */}
         {messages.length <= 0 ? (
           // Welcome Message
           <div className="flex-grow flex flex-col items-center justify-center text-center p-4 select-none">
             <div className="inline-flex items-center justify-center mb-4 md:mb-9 -ml-9 md:ml-0 mt-[-4rem] md:mt-0">
               <Image 
-                src="/pagelogo.png"
+                src="/glitch-logo.png"
                 alt="Lira Logo"
                 width={100}
                 height={100}
@@ -536,9 +496,8 @@ export default function AssistantPage() {
             </div>
           </div>
         )}
-      </div> {/* End of Main centered content column */}
+      </div>
 
-      {/* Chat Input Bar */}
       <ChatInputBar 
         inputMessage={inputMessage}
         setInputMessage={setInputMessage}
@@ -552,7 +511,7 @@ export default function AssistantPage() {
   );
 }
 
-// New ChatInputBar Component
+// ChatInputBar Component
 interface ChatInputBarProps {
   inputMessage: string;
   setInputMessage: (value: string) => void;
@@ -613,7 +572,6 @@ function ChatInputBar({
   return (
     <div className={outerWrapperClasses}>
       <div className={innerMaxWidthContainerClasses}>
-        {/* Main container for the input bar */}
         <div className={cn(
           "p-0.5 bg-gradient-to-r from-blue-500/30 via-pink-500/30 to-yellow-400/30 rounded-2xl shadow-lg",
           isChatActive && "animate-gradient-spin animate-gradient-pulse"
@@ -630,10 +588,9 @@ function ChatInputBar({
               onKeyPress={onTextareaKeyPress} 
               placeholder={isConnected ? "Ask anything..." : "Ask anything... (offline mode)"}
               className="w-full bg-transparent text-gray-100 placeholder-gray-500 focus:outline-none text-sm md:text-base resize-none overflow-y-auto min-h-[24px] md:min-h-[28px] py-1.5 px-1"
-              disabled={isConnecting}
+              disabled={isConnecting || !isConnected}
             />
 
-            {/* Bottom row: Action Buttons & Send */}
             <div className="flex items-center justify-between space-x-2 pt-1 md:pt-2 border-t border-gray-800/30">
               <div className="flex items-center space-x-2">
                 <button 
@@ -664,7 +621,6 @@ function ChatInputBar({
                 )}
               </div>
 
-              {/* Right Group: Utility Icons and Send Button */}
               <div className="flex items-center space-x-1.5">
                 <button className="p-1.5 text-gray-400 hover:text-gray-200 rounded-full hover:bg-gray-700/70 transition-colors">
                   <SquareStack className="w-4 h-4" />
@@ -678,13 +634,12 @@ function ChatInputBar({
                 <button className="p-1.5 text-gray-400 hover:text-gray-200 rounded-full hover:bg-gray-700/70 transition-colors hidden md:inline-flex">
                   <Mic className="w-4 h-4" />
                 </button>
-                {/* Send Button */}
                 <button
                   onClick={handleSendMessage}
-                  disabled={isConnecting || !inputMessage.trim()}
+                  disabled={isConnecting || !isConnected || !inputMessage.trim()}
                   className={cn(
                     "p-2 rounded-lg transition-colors flex items-center justify-center aspect-square",
-                    isConnecting || !inputMessage.trim()
+                    isConnecting || !isConnected || !inputMessage.trim()
                       ? "bg-gray-700 text-gray-500 cursor-not-allowed"
                       : "bg-white/90 hover:bg-white/75"
                   )}
@@ -695,7 +650,6 @@ function ChatInputBar({
             </div>
           </div>
         </div>
-        {/* Connection Status for Mobile */}
         <div className="text-center pt-1.5 pb-2 md:hidden">
           <ConnectionStatus status={connectionStatus} />
         </div>
