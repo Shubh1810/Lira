@@ -2,7 +2,9 @@
   "rewrites": [
     { "source": "/api/auth/:path*", "destination": "/api/auth/:path*" },
     { "source": "/api", "destination": "/api/index.py" },
-    { "source": "/api/ask", "destination": "/api/index.py" }
+    { "source": "/api/ask", "destination": "/api/index.py" },
+    { "source": "/api/chat_sessions", "destination": "/api/index.py" },
+    { "source": "/api/chat_sessions/:session_id", "destination": "/api/index.py" }
   ],
   "headers": [
     {

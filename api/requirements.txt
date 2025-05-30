@@ -3,4 +3,4 @@ langchain-openai
 langchain
 python-dotenv
 uvicorn 
-chromadb
+
