@@ -355,7 +355,7 @@ export default function AssistantPage() {
         {messages.length <= 0 ? (
           // Welcome Message
           <div className="flex-grow flex flex-col items-center justify-center text-center p-4 select-none">
-            <div className="inline-flex items-center justify-center mb-9 -ml-9 md:ml-0">
+            <div className="inline-flex items-center justify-center mb-4 md:mb-9 -ml-9 md:ml-0 mt-[-4rem] md:mt-0">
               <Image 
                 src="/pagelogo.png"
                 alt="Lira Logo"
@@ -367,8 +367,8 @@ export default function AssistantPage() {
                 Lira
               </h1>
             </div>
-            <p className="text-lg md:text-2xl text-gray-400 mb-10 font-merienda">
-              Ready to explore your network and online presence?<br /> Ask me anything.
+            <p className="text-lg md:text-2xl text-gray-400 mb-6 md:mb-10 font-audiowide">
+              Ready to explore your network and automate half your life?<br />Let me handle your errand management and make your life easier. Ask me anything.
             </p>
             
             {/* Live Connection Status Dashboard */}
