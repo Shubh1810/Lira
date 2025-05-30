@@ -235,11 +235,11 @@ function MessageBubble({ message }: { message: Message }) {
       )}>
         {message.type === "ai" ? (
           <div 
-            className="text-sm leading-relaxed whitespace-pre-wrap"
+            className="text-base md:text-lg leading-relaxed whitespace-pre-wrap font-geist-sans"
             dangerouslySetInnerHTML={{ __html: formatMessageContent(message.content) }}
           />
         ) : (
-          <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>
+          <p className="text-base md:text-lg leading-relaxed whitespace-pre-wrap font-geist-sans">{message.content}</p>
         )}
         {message.status === "sending" && (
           <div className="text-xs text-gray-500 mt-1">Sending...</div>
@@ -339,7 +339,7 @@ export default function AssistantPage() {
       <div className="max-w-3xl w-full mx-auto relative">
         <button
           onClick={handleNewChat}
-          className="fixed top-5.5 right-5 md:top-5 md:right-86 z-30 bg-gray-800/50 hover:bg-gray-700/90 text-gray-200 p-2 rounded-full shadow-lg transition-colors backdrop-blur-sm"
+          className="fixed top-5.5 right-5 md:top-5 md:right-117 z-30 bg-gray-800/50 hover:bg-gray-700/90 text-gray-200 p-2 rounded-full shadow-lg transition-colors backdrop-blur-sm"
         >
           <PlusCircle className="w-5 h-5" />
         </button>

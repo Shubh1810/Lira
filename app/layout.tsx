@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Merienda } from "next/font/google";
+import { Roboto, Michroma, Audiowide } from 'next/font/google'
 import "./globals.css";
 import Providers from "./Providers";
 import { cn } from "@/lib/utils";
@@ -19,6 +20,27 @@ const merienda = Merienda({
   subsets: ['latin'],
   variable: '--font-merienda'
 });
+
+const roboto = Roboto({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '700'],
+  variable: '--font-roboto',
+  display: 'swap',
+})
+
+const michroma = Michroma({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-michroma',
+  display: 'swap',
+})
+
+const audiowide = Audiowide({
+  weight: '400',
+  subsets: ['latin'],
+  variable: '--font-audiowide',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: "Lira",
@@ -51,7 +73,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${roboto.variable} ${michroma.variable} ${audiowide.variable}`}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -62,7 +84,8 @@ export default function RootLayout({
           "min-h-screen bg-black text-gray-100",
           geistSans.variable,
           geistMono.variable,
-          merienda.variable
+          merienda.variable,
+          roboto.className
         )}
       >
         <Providers>
