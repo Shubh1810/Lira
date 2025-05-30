@@ -28,6 +28,10 @@
     background-size: 200% 200%; /* Ensure gradient has room to move */
     animation: gradient-spin 8s linear infinite;
   }
+
+  .font-merienda {
+    font-family: var(--font-merienda);
+  }
 }
 
 @keyframes gradient-pulse {

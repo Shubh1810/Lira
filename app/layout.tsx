@@ -1,7 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Merienda } from "next/font/google";
 import "./globals.css";
 import Providers from "./Providers";
+import { cn } from "@/lib/utils";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -11,6 +13,11 @@ const geistSans = Geist({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+const merienda = Merienda({ 
+  subsets: ['latin'],
+  variable: '--font-merienda'
 });
 
 export const metadata: Metadata = {
@@ -51,7 +58,12 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Michroma&display=swap" rel="stylesheet" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={cn(
+          "min-h-screen bg-black text-gray-100",
+          geistSans.variable,
+          geistMono.variable,
+          merienda.variable
+        )}
       >
         <Providers>
           {children}

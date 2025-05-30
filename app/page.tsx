@@ -4,9 +4,9 @@ import { useState, useEffect } from "react";
 import { useSession, signIn } from "next-auth/react";
 import Image from "next/image";
 import { 
-  Brain, 
-  Network,
-  MessageCircle
+  Globe, 
+  MessageCircle,
+  LucideIcon
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { DynamicIsland } from "@/components/ui/DynamicIsland";
@@ -17,16 +17,53 @@ import NetworkingPage from "@/components/pages/NetworkingPage";
 import AssistantPage from "@/components/pages/AssistantPage";
 import AccountPage from "@/components/pages/AccountPage";
 
+type CustomIcon = (props: { isSelected: boolean }) => React.ReactNode;
+
+interface NavItem {
+  name: string;
+  icon: CustomIcon | LucideIcon;
+  page: string;
+  title: string;
+  bgColor: string;
+}
+
 export default function Home() {
   const [currentPage, setCurrentPage] = useState("assistant");
   const [currentPageTitle, setCurrentPageTitle] = useState("Agent");
   const [isNavOpen, setIsNavOpen] = useState(false);
   const { data: session } = useSession();
 
-  const navItems = [
-    { name: "Memory", icon: Brain, page: "memory", title: "AI Memory", bgColor: "bg-gray-800" },
-    { name: "Network", icon: Network, page: "networking", title: "Networking", bgColor: "bg-gray-800" },
-    { name: "Agent", icon: MessageCircle, page: "assistant", title: "Agent", bgColor: "bg-gray-800" },
+  const navItems: NavItem[] = [
+    { 
+      name: "Memory", 
+      icon: ({ isSelected }: { isSelected: boolean }) => <Image 
+        src="/memory.png" 
+        alt="Memory" 
+        width={25} 
+        height={25} 
+        className={cn(
+          "brightness-0 invert transition-opacity",
+          isSelected ? "opacity-100" : "opacity-[0.55]"
+        )}
+      />, 
+      page: "memory", 
+      title: "AI Memory", 
+      bgColor: "bg-gray-800" 
+    },
+    { 
+      name: "Network", 
+      icon: Globe, 
+      page: "networking", 
+      title: "Networking", 
+      bgColor: "bg-gray-800" 
+    },
+    { 
+      name: "Agent", 
+      icon: MessageCircle, 
+      page: "assistant", 
+      title: "Agent", 
+      bgColor: "bg-gray-800" 
+    },
   ];
 
   const handleNavClick = (page: string) => {
@@ -145,7 +182,14 @@ export default function Home() {
                     )}
                     type="button"
                   >
-                    <IconComponent className={cn("w-6 h-6", isSelected ? "text-white" : "text-gray-500")} />
+                    <div className="w-6 h-6 flex items-center justify-center">
+                      {typeof IconComponent === 'function' && IconComponent.length > 0 ? (
+                        <IconComponent isSelected={isSelected} />
+                      ) : (
+                        // @ts-ignore - Lucide icon type mismatch
+                        <IconComponent className={cn("w-6 h-6", isSelected ? "text-white" : "text-gray-500")} />
+                      )}
+                    </div>
                     <span className="text-sm font-medium">{item.name}</span>
                   </button>
                 </div>
