@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ArrowLeft, MessageSquare, User, Zap } from "lucide-react"; // Added User and Zap for icons
+import { ArrowLeft, User, Zap } from "lucide-react"; // Added User and Zap for icons
 import { getChatSessionDetails, SessionDetail, ChatMessage as ApiChatMessage } from "@/lib/api"; // Renamed ChatMessage to ApiChatMessage to avoid conflict
 import { cn } from "@/lib/utils";
 
