@@ -134,7 +134,7 @@ export default function Home() {
     };
     window.addEventListener('storage', handleStorageChange);
     return () => window.removeEventListener('storage', handleStorageChange);
-  }, [session]);
+  }, [session, getCurrentGradient, getUserDisplayName]);
 
   return (
     <div className="min-h-screen bg-black text-gray-300 flex flex-col relative">
@@ -186,7 +186,7 @@ export default function Home() {
                       {typeof IconComponent === 'function' && IconComponent.length > 0 ? (
                         <IconComponent isSelected={isSelected} />
                       ) : (
-                        // @ts-ignore - Lucide icon type mismatch
+                        // @ts-expect-error - Lucide icon type mismatch with custom icon type
                         <IconComponent className={cn("w-6 h-6", isSelected ? "text-white" : "text-gray-500")} />
                       )}
                     </div>
